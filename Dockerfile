@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt \
     && mkdir -p /opt/tg-streaming-bot/downloads \
     && chmod 755 /opt/tg-streaming-bot/downloads
 
+COPY main.py /opt/tg-streaming-bot/main.py
 COPY web_wrapper.py /opt/tg-streaming-bot/web_wrapper.py
 
 CMD ["python3", "web_wrapper.py"]
