@@ -11,7 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg git ca-c
 
 RUN git clone --depth 1 https://github.com/antlis/tg-streaming-bot.git /opt/tg-streaming-bot
 WORKDIR /opt/tg-streaming-bot
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+RUN pip install --no-cache-dir --upgrade -r requirements.txt \
+    && mkdir -p /opt/tg-streaming-bot/downloads \
+    && chmod 755 /opt/tg-streaming-bot/downloads
 
 COPY web_wrapper.py /opt/tg-streaming-bot/web_wrapper.py
 
