@@ -70,17 +70,24 @@ async def start_bot():
             await bot.start()
             break
         except FloodWait as e:
-            wait = int(e.value) + 5
-            log.warning("FloodWait on bot login — sleeping %ss", wait)
+            wait = int(getattr(e, "value", 0)) + 5
+            log.error(
+                "Telegram rate-limited bot login for %ss. Keeping this process alive until the wait ends; "
+                "do not repeatedly redeploy or restart during this period.",
+                wait,
+            )
             await asyncio.sleep(wait)
+        except Exception:
+            log.exception("Bot client failed to start. Check BOT_TOKEN, API_ID, API_HASH, and Telegram login limits.")
+            raise
 
     try:
         await bot.set_bot_commands(BOT_COMMANDS)
         await bot.set_bot_commands(BOT_COMMANDS, scope=BotCommandScopeAllGroupChats())
         await bot.set_bot_commands(BOT_COMMANDS, scope=BotCommandScopeAllPrivateChats())
         log.info("bot commands registered")
-    except Exception as e:
-        log.warning("could not register bot commands: %s", e)
+    except Exception:
+        log.exception("Could not register bot commands; continuing startup")
 
     load_resume()
     load_topic_lock()
@@ -88,20 +95,32 @@ async def start_bot():
     asyncio.create_task(track_position())
     asyncio.create_task(radio_updater())
 
-    log.info("starting pytgcalls client")
+    log.info("starting PyTgCalls assistant client")
     try:
         await call_py.start()
-        log.info("pytgcalls client started")
-    except Exception:
-        log.exception("voice assistant failed to start; Telegram bot commands will remain available. Replace SESSION_NAME with a fresh, unique session string and ensure it is not used by another running process.")
+        log.info("PyTgCalls assistant client started; voice/video streaming is available")
+    except Exception as e:
+        if type(e).__name__ == "AuthKeyDuplicated":
+            log.error(
+                "SESSION_NAME is invalidated because the same Telegram assistant session is active in another process. "
+                "Stop every other copy using this session string, then restart this Render service. "
+                "Do not create or share a new session string unless the existing one is confirmed unusable."
+            )
+        else:
+            log.exception("PyTgCalls assistant client failed to start; bot commands may work, but voice/video streaming will not.")
+        # Keep the bot command client alive so /help and diagnostics remain available.
     try:
         await idle()
     finally:
-        log.info("stopping bot & userbot")
+        log.info("stopping bot and assistant clients")
+        try:
+            await call_py.stop()
+        except Exception:
+            log.exception("Error stopping PyTgCalls client")
         try:
             await bot.stop()
         except Exception:
-            log.exception("error stopping bot client")
+            log.exception("Error stopping bot client")
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(start_bot())
+if __name__ == "__main__":
+    asyncio.run(start_bot())
