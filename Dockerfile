@@ -9,7 +9,10 @@ ENV PORT=10000
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git clone --depth 1 https://github.com/antlis/tg-streaming-bot.git /opt/tg-streaming-bot
+# Pin upstream to a known revision: do not silently pull incompatible code on every build.
+RUN git clone https://github.com/antlis/tg-streaming-bot.git /opt/tg-streaming-bot \
+    && git -C /opt/tg-streaming-bot checkout a2ef52ec6247411ddbb44bc117dec67ff21f4b96
+
 WORKDIR /opt/tg-streaming-bot
 RUN pip install --no-cache-dir --upgrade -r requirements.txt \
     && mkdir -p /opt/tg-streaming-bot/downloads \
